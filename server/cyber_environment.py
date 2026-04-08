@@ -1,15 +1,12 @@
-from __future__ import annotations
-
+import numpy as np
 from uuid import uuid4
+from pathlib import Path
+from stable_baselines3 import PPO, DQN
 
 from openenv.core.env_server.interfaces import Environment
 
-try:
-    from ..core.simulator import CyberSimulator, SimulatorConfig
-    from ..models import CyberAction, CyberObservation, CyberState
-except ImportError:  # pragma: no cover
-    from cyber_openenv_rl.core.simulator import CyberSimulator, SimulatorConfig
-    from cyber_openenv_rl.models import CyberAction, CyberObservation, CyberState
+from cyber_openenv_rl.core.simulator import CyberSimulator, SimulatorConfig
+from cyber_openenv_rl.models import CyberAction, CyberObservation, CyberState
 
 
 class CyberEnvironment(Environment[CyberAction, CyberObservation, CyberState]):
@@ -23,6 +20,23 @@ class CyberEnvironment(Environment[CyberAction, CyberObservation, CyberState]):
         self.seed = seed
         self._episode_id = str(uuid4())
         self.sim = CyberSimulator(SimulatorConfig(task_id=task_id, seed=seed))
+        
+        # Try to load the best model
+        self.model = None
+        model_path = Path("outputs/models/best/best_model.zip")
+        if not model_path.exists():
+             # Fallback to a common path
+             model_path = Path(f"outputs/models/defender_ppo_{task_id}.zip")
+             
+        if model_path.exists():
+            print(f"Server: Loading AI Agent from {model_path}")
+            try:
+                self.model = PPO.load(str(model_path))
+            except Exception:
+                try:
+                    self.model = DQN.load(str(model_path))
+                except Exception as e:
+                    print(f"Server: Failed to load model: {e}")
 
     def reset(
         self,
@@ -58,7 +72,36 @@ class CyberEnvironment(Environment[CyberAction, CyberObservation, CyberState]):
         obs.done = done
         obs.metadata.update(info)
         obs.metadata["episode_id"] = self._episode_id
+        
+        # Add AI suggestion for next step
+        if self.model:
+            # Simple vectorization for prediction (matching gym_env logic)
+            vec_obs = self._vectorize_for_model(obs)
+            ai_action_idx, _ = self.model.predict(vec_obs, deterministic=True)
+            info["ai_suggestion"] = int(ai_action_idx)
+            
         return obs
+
+    def _vectorize_for_model(self, obs: CyberObservation) -> np.ndarray:
+        # Match the logic in gym_env.py
+        v = []
+        hosts = self.sim.task_config.hosts
+        services = sorted({s for svcs in self.sim.task_config.services.values() for s in svcs})
+        
+        for h in hosts:
+            v.append(1.0 if obs.host_compromise.get(h, False) else 0.0)
+            v.append(1.0 if obs.host_isolation.get(h, False) else 0.0)
+            alert_score = 1.0 if any(h in alert for alert in obs.ids_alerts) else 0.0
+            v.append(alert_score)
+
+        for h in hosts:
+            for s in services:
+                v.append(1.0 if obs.service_status.get(h, {}).get(s, False) else 0.0)
+
+        v.append(float(obs.traffic_anomaly_score))
+        denom = max(1, self.sim.task_config.max_steps)
+        v.append(float(obs.step_budget_remaining / denom))
+        return np.array([v], dtype=np.float32)
 
     @property
     def state(self) -> CyberState:

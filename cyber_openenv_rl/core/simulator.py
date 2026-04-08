@@ -9,8 +9,16 @@ from ..models import CyberAction, CyberObservation, CyberState, Incident, Reward
 from ..tasks import TaskConfig, get_task
 
 
-DEFENDER_ACTIONS = ["block_ip", "isolate_node", "scan_host", "patch_service", "ignore"]
-ATTACKER_ACTIONS = ["lateral_move", "credential_stuff", "malware_drop", "recon", "idle"]
+DEFENDER_ACTIONS = ["block_ip", "isolate_node", "scan_host", "patch_service", "restore_backup", "ignore"]
+ATTACKER_ACTIONS = ["lateral_move", "credential_stuff", "malware_drop", "recon", "privesc", "exfiltrate", "idle"]
+
+HOST_CRITICALITY = {
+    "db": 5.0,
+    "domain_controller": 10.0,
+    "web": 2.0,
+    "admin": 3.0,
+    "user": 1.0
+}
 
 
 @dataclass
@@ -144,11 +152,15 @@ class CyberSimulator:
     def _apply_attacker_action(self, action: CyberAction, rb: RewardSignal) -> None:
         target = action.target_host
         source_ip = action.source_ip or "0.0.0.0"
+        
+        # Survival bonus for this step
+        rb.base += 0.05 
+        
         if source_ip in self._state.blocked_ips:
-            rb.prevention += 1.5
+            rb.prevention += 2.0  # Increased from 1.5
             return
         if self._state.isolated_hosts.get(target, False):
-            rb.prevention += 1.0
+            rb.prevention += 1.5  # Increased from 1.0
             return
 
         noisy = self.rng.uniform(0.0, 1.0)
@@ -167,9 +179,10 @@ class CyberSimulator:
                 self._state.incidents.append(
                     Incident(host=target, attack_type="credential_stuff", severity=0.6)
                 )
-                rb.spread_penalty -= 1.7
+                penalty = 3.0 if "db" in target else 1.7
+                rb.spread_penalty -= penalty
             else:
-                rb.prevention += 0.4
+                rb.prevention += 0.5
             return
 
         if action.action_type == "malware_drop":
@@ -184,16 +197,42 @@ class CyberSimulator:
 
         if action.action_type == "lateral_move":
             if not self._state.compromised_hosts.get(target, False):
-                threshold = self.threat_profile.get("lateral_move_success_threshold", 0.25)
+                # Lateral move is harder if the source host isn't compromised
+                threshold = self.threat_profile.get("lateral_move_success_threshold", 0.45)
                 self._state.compromised_hosts[target] = noisy > threshold
+            
             if self._state.compromised_hosts[target]:
                 self._state.incidents.append(
                     Incident(host=target, attack_type="lateral_move", severity=0.7)
                 )
-                rb.spread_penalty -= 2.0
+                critic = self._get_host_criticality(target)
+                rb.spread_penalty -= (2.0 * critic)
             else:
-                rb.prevention += 0.8
+                rb.prevention += 1.0
             return
+
+        if action.action_type == "privesc":
+            if self._state.compromised_hosts.get(target, False):
+                # If already compromised, gain "root" (higher penalty if not caught)
+                rb.spread_penalty -= 1.5
+                self._state.incidents.append(
+                    Incident(host=target, attack_type="privesc", severity=0.9)
+                )
+            return
+
+        if action.action_type == "exfiltrate":
+            if self._state.compromised_hosts.get(target, False) and "db" in target:
+                rb.spread_penalty -= 10.0  # MAJOR PENALTY
+                self._state.incidents.append(
+                    Incident(host=target, attack_type="exfiltration", severity=1.0)
+                )
+            return
+
+    def _get_host_criticality(self, host: str) -> float:
+        for key, val in HOST_CRITICALITY.items():
+            if key in host.lower():
+                return val
+        return 1.0
 
     def _apply_defender_action(self, action: CyberAction, rb: RewardSignal) -> None:
         host = action.target_host
@@ -247,6 +286,14 @@ class CyberSimulator:
                 rb.collateral_penalty -= 0.3
             return
 
+        if action.action_type == "restore_backup":
+            if self._state.compromised_hosts.get(host, False):
+                self._state.compromised_hosts[host] = False
+                rb.containment += 2.0
+            else:
+                rb.loop_penalty -= 0.5
+            return
+
     def _build_observation(
         self, reward: float, done: bool, reward_signal: RewardSignal
     ) -> CyberObservation:
@@ -277,11 +324,23 @@ class CyberSimulator:
     def _terminal_reason(self) -> str | None:
         if self._state.step_count >= self.task_config.max_steps:
             return "max_steps"
-        if self._state.compromised_count >= max(1, len(self.task_config.hosts) - 1):
+        
+        # Don't end too early on minor compromises, but be strict on data
+        total_hosts = len(self.task_config.hosts)
+        comp_count = sum(1 for h, c in self._state.compromised_hosts.items() if c)
+        
+        if comp_count >= max(2, total_hosts - 1):
             return "catastrophic_compromise"
+            
         data_hosts = [h for h in self.task_config.hosts if "db" in h]
         if data_hosts and any(self._state.compromised_hosts.get(h, False) for h in data_hosts):
+            # If a DB is compromised, it's game over immediately
             return "crown_jewel_compromised"
+
+        # If exfiltration happened, it's also terminal failure
+        if any(inc.attack_type == "exfiltration" for inc in self._state.incidents):
+            return "data_exfiltrated"
+            
         return None
 
     def _compute_metrics(self) -> Dict[str, float]:

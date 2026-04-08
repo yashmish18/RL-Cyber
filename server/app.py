@@ -8,12 +8,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from openenv.core.env_server.http_server import create_app
 
-try:
-    from ..cyber_openenv_rl.models import CyberAction, CyberObservation
-    from .cyber_environment import CyberEnvironment
-except ImportError:  # pragma: no cover
-    from cyber_openenv_rl.models import CyberAction, CyberObservation
-    from server.cyber_environment import CyberEnvironment
+from cyber_openenv_rl.models import CyberAction, CyberObservation
+from server.cyber_environment import CyberEnvironment
 
 
 app = create_app(
@@ -33,7 +29,10 @@ class ApprovalDecision(BaseModel):
 
 @app.get("/api/approval/pending")
 async def get_pending_approvals():
-    return JSONResponse(content={"pending": list(pending_approvals.values())})
+    """Returns the list of pending actions for the SOC dashboard."""
+    # Combine manually pushed ones with the environment's latest suggestions
+    all_pending = list(pending_approvals.values()) + list(CyberEnvironment.PENDING_PROPOSALS)
+    return {"pending": all_pending}
 
 @app.post("/api/approval/propose")
 async def propose_action(proposal: dict = Body(...)):

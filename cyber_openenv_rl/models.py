@@ -126,3 +126,4 @@ class StepInfo(BaseModel):
     reward_breakdown: RewardSignal
     metrics: Dict[str, float]
     terminal_reason: Optional[str] = None
+    terminal_reason: Optional[str] = None

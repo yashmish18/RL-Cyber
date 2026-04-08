@@ -1,5 +1,10 @@
 [console_scripts]
+benchmark-suite = cyber_openenv_rl.eval.benchmark_suite:main
 eval-baseline = cyber_openenv_rl.eval.baseline_inference:main
+index-codebase = tools.generate_codebase_index:main
+realtime-defense = cyber_openenv_rl.deployment.run_realtime_defense:main
 server = server.app:main
 train-attacker = cyber_openenv_rl.rl.train_attacker:main
+train-curriculum = cyber_openenv_rl.rl.train_curriculum:main
 train-defender = cyber_openenv_rl.rl.train_defender:main
+train-real-data = cyber_openenv_rl.rl.train_real_data:main

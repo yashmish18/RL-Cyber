@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CyberGuard SOC Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@300;500&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@300;500&display=swap"
+        rel="stylesheet">
     <style>
         :root {
             --bg-color: #0a0b10;
@@ -93,10 +96,21 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        .ts { color: #888; }
-        .info { color: var(--accent-cyan); }
-        .warn { color: #ffca28; }
-        .error { color: var(--accent-red); }
+        .ts {
+            color: #888;
+        }
+
+        .info {
+            color: var(--accent-cyan);
+        }
+
+        .warn {
+            color: #ffca28;
+        }
+
+        .error {
+            color: var(--accent-red);
+        }
 
         .approval-card {
             background: rgba(0, 242, 255, 0.05);
@@ -109,9 +123,17 @@
         }
 
         @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(0, 242, 255, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(0, 242, 255, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(0, 242, 255, 0); }
+            0% {
+                box-shadow: 0 0 0 0 rgba(0, 242, 255, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(0, 242, 255, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(0, 242, 255, 0);
+            }
         }
 
         .btn-group {
@@ -197,10 +219,20 @@
             text-transform: uppercase;
         }
 
-        .status-ok { background: rgba(0, 255, 157, 0.1); color: var(--accent-green); border: 1px solid var(--accent-green); }
-        .status-alert { background: rgba(255, 62, 62, 0.1); color: var(--accent-red); border: 1px solid var(--accent-red); }
+        .status-ok {
+            background: rgba(0, 255, 157, 0.1);
+            color: var(--accent-green);
+            border: 1px solid var(--accent-green);
+        }
+
+        .status-alert {
+            background: rgba(255, 62, 62, 0.1);
+            color: var(--accent-red);
+            border: 1px solid var(--accent-red);
+        }
     </style>
 </head>
+
 <body>
     <header>
         <h1>CyberGuard SOC v1.0</h1>
@@ -211,18 +243,24 @@
         <section class="panel">
             <div class="panel-header">Realtime Telemetry</div>
             <div class="panel-content" id="log-list">
-                <div class="log-entry"><span class="ts">[16:15:02]</span> <span class="info">SYSTEM: Monitoring Splunk connector...</span></div>
-                <div class="log-entry"><span class="ts">[16:15:10]</span> <span class="info">NETWORK: Inbound traffic normal on DMZ-01.</span></div>
+                <div class="log-entry"><span class="ts">[16:15:02]</span> <span class="info">SYSTEM: Monitoring Splunk
+                        connector...</span></div>
+                <div class="log-entry"><span class="ts">[16:15:10]</span> <span class="info">NETWORK: Inbound traffic
+                        normal on DMZ-01.</span></div>
             </div>
         </section>
 
         <section class="panel">
             <div class="panel-header">Threat Map</div>
             <div class="panel-content network-map">
-                <div class="host" style="top: 20%; left: 50%;">WEB-01<br><span style="font-size:0.5rem">10.0.0.10</span></div>
-                <div class="host" style="top: 50%; left: 30%;">APP-01<br><span style="font-size:0.5rem">10.0.0.11</span></div>
-                <div class="host compromised" style="top: 50%; left: 70%;">DB-01<br><span style="font-size:0.5rem">10.0.0.20</span></div>
-                <div class="host" style="top: 80%; left: 50%;">ADMIN-01<br><span style="font-size:0.5rem">10.0.0.5</span></div>
+                <div class="host" style="top: 20%; left: 50%;">WEB-01<br><span style="font-size:0.5rem">10.0.0.10</span>
+                </div>
+                <div class="host" style="top: 50%; left: 30%;">APP-01<br><span style="font-size:0.5rem">10.0.0.11</span>
+                </div>
+                <div class="host compromised" style="top: 50%; left: 70%;">DB-01<br><span
+                        style="font-size:0.5rem">10.0.0.20</span></div>
+                <div class="host" style="top: 80%; left: 50%;">ADMIN-01<br><span
+                        style="font-size:0.5rem">10.0.0.5</span></div>
             </div>
         </section>
 
@@ -235,39 +273,105 @@
     </main>
 
     <script>
-        async function fetchPending() {
+        let currentTaskId = 'easy';
+
+        async function fetchState() {
             try {
+                // In a proper openenv setup, we'd fetch from /api/observation/latest
+                // For this demo, we'll fetch pending approvals which contains the latest observation
                 const response = await fetch('/api/approval/pending');
                 const data = await response.json();
-                renderApprovals(data.pending);
+
+                if (data.pending && data.pending.length > 0) {
+                    const latest = data.pending[data.pending.length - 1];
+                    updateNetworkMap(latest.observation);
+                    updateLogs(latest.observation);
+                    renderApprovals(data.pending);
+                }
             } catch (error) {
-                console.error('Error fetching pending actions:', error);
+                console.error('Error fetching state:', error);
             }
+        }
+
+        function updateNetworkMap(obs) {
+            const map = document.querySelector('.network-map');
+            const hosts = Object.keys(obs.host_compromise);
+
+            // Clear existing if host count changed (simple diffing)
+            if (map.children.length !== hosts.length) {
+                map.innerHTML = '';
+                hosts.forEach((h, i) => {
+                    const angle = (i / hosts.length) * 2 * Math.PI;
+                    const r = 150; // radius
+                    const x = 50 + (r * Math.cos(angle)) / 5; // scaled for %
+                    const y = 50 + (r * Math.sin(angle)) / 5;
+
+                    const el = document.createElement('div');
+                    el.className = 'host';
+                    el.id = `host-${h}`;
+                    el.style.left = `${x}%`;
+                    el.style.top = `${y}%`;
+                    el.innerHTML = `${h.toUpperCase()}<br><span class="ip-label"></span>`;
+                    map.appendChild(el);
+                });
+            }
+
+            hosts.forEach(h => {
+                const el = document.getElementById(`host-${h}`);
+                if (!el) return;
+
+                if (obs.host_compromise[h]) el.classList.add('compromised');
+                else el.classList.remove('compromised');
+
+                if (obs.host_isolation[h]) el.classList.add('isolated');
+                else el.classList.remove('isolated');
+            });
+        }
+
+        function updateLogs(obs) {
+            const list = document.getElementById('log-list');
+            if (!obs.ids_alerts) return;
+
+            // Only add new alerts
+            obs.ids_alerts.forEach(alert => {
+                if (Array.from(list.children).some(c => c.innerText.includes(alert))) return;
+
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                const time = new Date().toLocaleTimeString();
+                entry.innerHTML = `<span class="ts">[${time}]</span> <span class="warn">IDS: ${alert}</span>`;
+                list.prepend(entry);
+                if (list.children.length > 20) list.lastChild.remove();
+            });
         }
 
         function renderApprovals(pending) {
             const container = document.getElementById('approval-queue');
-            if (!pending || pending.length === 0) {
+            const active = pending.filter(p => p.status === 'pending');
+
+            if (active.length === 0) {
                 container.innerHTML = '<div class="empty-state">No pending actions.</div>';
                 return;
             }
 
             container.innerHTML = '';
-            pending.forEach(p => {
-                if (p.status !== 'pending') return;
-                
+            active.forEach(p => {
                 const card = document.createElement('div');
                 card.className = 'approval-card';
+
+                // Highlight if it's an AI suggestion
+                const isAi = p.metadata && p.metadata.is_ai_suggestion;
+
                 card.innerHTML = `
-                    <div style="font-weight:bold; color:var(--accent-cyan); margin-bottom:0.5rem">PROPOSAL: ${p.proposed_action.action_type.toUpperCase()}</div>
-                    <div style="font-size:0.7rem; margin-bottom:0.3rem">TARGET: ${p.proposed_action.target_host}</div>
-                    <div style="font-size:0.7rem; margin-bottom:0.5rem">CONFIDENCE: ${(p.confidence * 100).toFixed(1)}%</div>
-                    <div style="font-size:0.6rem; color:#888; background:rgba(0,0,0,0.3); padding:0.5rem; border-radius:4px">
-                        ${JSON.stringify(p.observation.ids_alerts.slice(0, 2))}
+                    <div style="font-weight:bold; color:var(--accent-cyan); margin-bottom:0.5rem">
+                        PROPOSAL: ${p.proposed_action.action_type.toUpperCase()} 
+                        ${isAi ? '<span style="color:var(--accent-green); font-size:0.6rem">[AI FAVORITE]</span>' : ''}
                     </div>
+                    <div style="font-size:0.7rem; margin-bottom:0.3rem">TARGET: ${p.proposed_action.target_host}</div>
+                    <div style="font-size:0.7rem; margin-bottom:0.5rem">CONFIDENCE: ${(p.confidence * 100 || 85).toFixed(1)}%</div>
                     <div class="btn-group">
-                        <button onclick="decide('${p.action_id}', 'approve')">Approve</button>
-                        <button class="reject" onclick="decide('${p.action_id}', 'reject')">Reject</button>
+                        <button onclick="decide('${p.action_id}', 'approve')">Execute</button>
+                        <button class="reject" onclick="decide('${p.action_id}', 'reject')">Deny</button>
                     </div>
                 `;
                 container.appendChild(card);
@@ -281,14 +385,15 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action_id: actionId, decision: decision })
                 });
-                fetchPending();
+                fetchState();
             } catch (error) {
                 console.error('Error recording decision:', error);
             }
         }
 
-        setInterval(fetchPending, 2000);
-        fetchPending();
+        setInterval(fetchState, 1500);
+        fetchState();
     </script>
 </body>
+
 </html>

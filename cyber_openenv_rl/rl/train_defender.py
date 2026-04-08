@@ -7,7 +7,7 @@ from pathlib import Path
 from stable_baselines3 import DQN, PPO
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
 from .gym_env import DefenderGymEnv
 
@@ -62,10 +62,16 @@ def train(
     device: str = "auto",
 ) -> Path:
     env = DummyVecEnv([_make_env(task_id=task_id, seed=seed, threat_profile=threat_profile)])
+    env = VecNormalize(env, norm_obs=True, norm_reward=True, clip_obs=10.0)
+
     eval_env = DummyVecEnv(
         [_make_env(task_id=task_id, seed=seed + 57, threat_profile=threat_profile)]
     )
-    ppo_n_steps = max(64, min(512, total_timesteps))
+    eval_env = VecNormalize(eval_env, norm_obs=True, norm_reward=False, clip_obs=10.0)
+
+    # Note: We sync the normalization of the evaluation environment with the training one
+    # but we don't update its moving averages during evaluation.
+
     dqn_learning_starts = min(100, max(10, total_timesteps // 8))
     if algorithm == "ppo":
         model = PPO(
@@ -73,7 +79,10 @@ def train(
             env,
             verbose=1,
             seed=seed,
-            n_steps=ppo_n_steps,
+            n_steps=2048,
+            batch_size=64,
+            learning_rate=1e-4,
+            gamma=0.99,
             device=device,
             tensorboard_log=str(log_dir) if _HAS_TENSORBOARD else None,
         )
@@ -84,6 +93,11 @@ def train(
             verbose=1,
             seed=seed,
             learning_starts=dqn_learning_starts,
+            buffer_size=50000,
+            learning_rate=1e-4,
+            exploration_fraction=0.4, # Explore for 40% of the training time
+            exploration_final_eps=0.05,
+            target_update_interval=1000,
             device=device,
             tensorboard_log=str(log_dir) if _HAS_TENSORBOARD else None,
         )
@@ -110,7 +124,11 @@ def train(
     output_dir.mkdir(parents=True, exist_ok=True)
     path = output_dir / f"defender_{algorithm}_{task_id}.zip"
     model.save(str(path))
-
+    
+    # Save normalization statistics
+    stats_path = output_dir / f"defender_{algorithm}_{task_id}_vec_normalize.pkl"
+    env.save(str(stats_path))
+    
     summary = _evaluate_policy(
         model, task_id=task_id, episodes=5, threat_profile=threat_profile
     )
@@ -127,11 +145,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Train defender PPO/DQN models")
     parser.add_argument("--algorithm", choices=["ppo", "dqn"], default="ppo")
     parser.add_argument("--task", choices=["easy", "medium", "hard"], default="easy")
-    parser.add_argument("--timesteps", type=int, default=8000)
+    parser.add_argument("--timesteps", type=int, default=200000)
     parser.add_argument("--output-dir", default="outputs/models")
     parser.add_argument("--log-dir", default="outputs/logs")
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--device", default="auto", help="auto|cpu|cuda")
+    parser.add_argument("--device", default="cpu", help="auto|cpu|cuda")
     args = parser.parse_args()
 
     model_path = train(
