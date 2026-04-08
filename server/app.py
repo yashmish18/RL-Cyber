@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import argparse
+import os
 
-from fastapi import Body
+from fastapi import Body, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, RedirectResponse, Response
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 from openenv.core.env_server.http_server import create_app
 
 from cyber_openenv_rl.models import CyberAction, CyberObservation
 from server.cyber_environment import CyberEnvironment
-
-import os
 
 app = create_app(
     CyberEnvironment,
@@ -20,12 +22,13 @@ app = create_app(
 )
 
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+ CORSMiddleware,
+ allow_origins=["*"],
+ allow_credentials=True,
+ allow_methods=["*"],
+ allow_headers=["*"],
 )
+
 # In-memory storage for pending approvals
 pending_approvals: dict[str, dict] = {}
 
@@ -37,8 +40,7 @@ class ApprovalDecision(BaseModel):
 @app.get("/api/approval/pending")
 async def get_pending_approvals():
     """Returns the list of pending actions for the SOC dashboard."""
-    # Combine manually pushed ones with the environment's latest suggestions
-    all_pending = list(pending_approvals.values()) + list(CyberEnvironment.PENDING_PROPOSALS)
+    all_pending = list(pending_approvals.values())
     return {"pending": all_pending}
 
 @app.post("/api/approval/propose")
@@ -57,7 +59,6 @@ async def decide_action(decision: ApprovalDecision):
     if decision.action_id not in pending_approvals:
         return JSONResponse(content={"error": "Action ID not found"}, status_code=404)
     
-    # Store decision in the proposal record
     proposal = pending_approvals[decision.action_id]
     proposal["status"] = "decided"
     proposal["decision"] = decision.decision
@@ -72,44 +73,19 @@ async def get_approval_status(action_id: str):
     
     return JSONResponse(content=pending_approvals[action_id])
 
-
-# Mount static files for dashboard
-app.mount("/static", StaticFiles(directory="server/static"), name="static")
-
-@app.get("/dashboard", include_in_schema=False)
-def dashboard() -> RedirectResponse:
-    return RedirectResponse(url="/static/index.html")
-
-@app.get("/", include_in_schema=False)
-def root() -> RedirectResponse:
-    return RedirectResponse(url="/dashboard", status_code=307)
-
-
-@app.get("/favicon.ico", include_in_schema=False)
-def favicon() -> Response:
-    return Response(status_code=204)
-
-
 @app.get("/.well-known/appspecific/com.chrome.devtools.json", include_in_schema=False)
 def chrome_devtools_probe() -> JSONResponse:
     return JSONResponse({"status": "ok"})
 
-
-def main(host: str = "0.0.0.0", port: int = 8000):
+def main(host: str = "0.0.0.0", port: int = 7860):
     import uvicorn
-    import os
-
-    workers = int(os.getenv("WORKERS", 1))
-    
-    uvicorn.run(app, host=host, port=port, workers=workers)
-
+    uvicorn.run(app, host=host, port=port)
 
 def _cli() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--port", type=int, default=7860)
     args = parser.parse_args()
     main(port=args.port)
-
 
 if __name__ == "__main__":
     _cli()
