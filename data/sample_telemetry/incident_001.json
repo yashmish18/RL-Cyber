@@ -1,0 +1,15 @@
+{
+  "anomaly_score": 0.83,
+  "alerts": [
+    "Repeated SSH failures on edge-2 from 185.19.88.90",
+    "Suspicious lateral movement pattern edge-1 -> api-1"
+  ],
+  "events": [
+    {"type": "compromise", "host": "edge-1"},
+    {"type": "service_status", "host": "api-1", "service": "http", "healthy": true},
+    {"type": "service_status", "host": "db-1", "service": "postgres", "healthy": true}
+  ],
+  "incidents": [
+    {"host": "edge-1", "attack_type": "credential_stuff", "severity": 0.7, "detected": false}
+  ]
+}

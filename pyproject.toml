@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openenv-cyber-openenv-rl"
+version = "0.1.0"
+description = "Research-grade OpenEnv cyber defense RL environment"
+requires-python = ">=3.10"
+dependencies = [
+  "openenv-core[core]>=0.2.3",
+  "pydantic>=2.12.0",
+  "numpy>=2.0.0",
+  "networkx>=3.0",
+  "gymnasium>=1.0.0",
+  "stable-baselines3>=2.8.0",
+  "torch>=2.3.0",
+  "fastapi>=0.115.0",
+  "uvicorn>=0.34.0",
+  "openai>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "pytest-cov>=4.0.0",
+]
+
+[project.scripts]
+server = "server.app:main"
+train-defender = "cyber_openenv_rl.rl.train_defender:main"
+train-attacker = "cyber_openenv_rl.rl.train_attacker:main"
+train-curriculum = "cyber_openenv_rl.rl.train_curriculum:main"
+train-real-data = "cyber_openenv_rl.rl.train_real_data:main"
+eval-baseline = "cyber_openenv_rl.eval.baseline_inference:main"
+realtime-defense = "cyber_openenv_rl.deployment.run_realtime_defense:main"
+benchmark-suite = "cyber_openenv_rl.eval.benchmark_suite:main"
+index-codebase = "tools.generate_codebase_index:main"
+
+[tool.setuptools]
+include-package-data = true
+packages = ["cyber_openenv_rl", "cyber_openenv_rl.core", "cyber_openenv_rl.rl", "cyber_openenv_rl.eval", "cyber_openenv_rl.deployment", "cyber_openenv_rl.data", "server", "tools"]

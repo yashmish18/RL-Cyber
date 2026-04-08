@@ -1,0 +1,5 @@
+[console_scripts]
+eval-baseline = cyber_openenv_rl.eval.baseline_inference:main
+server = server.app:main
+train-attacker = cyber_openenv_rl.rl.train_attacker:main
+train-defender = cyber_openenv_rl.rl.train_defender:main

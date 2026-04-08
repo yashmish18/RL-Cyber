@@ -1,0 +1,12 @@
+spec_version: 1
+name: cyber_openenv_rl
+description: Multi-agent SOC cyber defense OpenEnv with deterministic grading and RL training.
+author: yash mishra, shubham jain, devam gupta
+tags:
+  - openenv
+  - cybersecurity
+  - reinforcement-learning
+type: space
+runtime: fastapi
+app: server.app:app
+port: 8000

@@ -1,0 +1,32 @@
+policy:
+  mode: defensive_only
+  human_approval_required: true
+  allowed_actions:
+    - block_ip
+    - isolate_node
+    - scan_host
+    - patch_service
+    - ignore
+  blocked_action_categories:
+    - offensive_exploitation
+    - credential_abuse
+    - destructive_payloads
+rollout:
+  stage_1: shadow_mode
+  stage_2: assisted_mode
+  stage_3: limited_autoremediation
+  rollback_on:
+    - false_positive_rate_gt_0.10
+    - service_availability_lt_0.95
+training:
+  algorithm_candidates:
+    - ppo
+    - dqn
+  curriculum_order:
+    - easy
+    - medium
+    - hard
+  seeds:
+    - 42
+    - 1337
+    - 2026
