@@ -1,5 +1,9 @@
-__pycache__/
-*.pyc
-.pytest_cache/
+*.zip
+*.tgz
+*.log
+trained_models/
+outputs/models/
+server.log
 .venv/
-outputs/
+__pycache__/
+.DS_Store
