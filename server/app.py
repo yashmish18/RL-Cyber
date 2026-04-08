@@ -3,14 +3,11 @@ from __future__ import annotations
 import argparse
 
 from fastapi import Body
-from fastapi.responses import JSONResponse, RedirectResponse, Response
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 from openenv.core.env_server.http_server import create_app
 
 from cyber_openenv_rl.models import CyberAction, CyberObservation
 from server.cyber_environment import CyberEnvironment
-
 
 import os
 
@@ -20,6 +17,14 @@ app = create_app(
     CyberObservation,
     env_name="cyber_openenv_rl",
     max_concurrent_envs=int(os.getenv("MAX_CONCURRENT_ENVS", 4)),
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 # In-memory storage for pending approvals
 pending_approvals: dict[str, dict] = {}
