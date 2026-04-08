@@ -1,3 +1,12 @@
+---
+title: Cyber OpenEnv RL
+emoji: 🛡️
+colorFrom: blue
+colorTo: red
+sdk: docker
+pinned: false
+---
+
 # Cyber OpenEnv RL: Multi-Agent Autonomous Cyber Defense
 
 Research-grade OpenEnv environment for autonomous cyber defense using reinforcement learning. This project models SOC workflows (alert triage, containment, patching) as a sequential decision process with attacker-defender interaction.

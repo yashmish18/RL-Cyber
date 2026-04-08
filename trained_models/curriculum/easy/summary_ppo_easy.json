@@ -1,0 +1,10 @@
+{
+  "task": "easy",
+  "episodes": 5,
+  "mean_reward": 49.999999999999986,
+  "min_reward": 49.999999999999986,
+  "max_reward": 49.999999999999986,
+  "seed": 42,
+  "total_timesteps": 8000,
+  "algorithm": "ppo"
+}

@@ -12,12 +12,14 @@ from cyber_openenv_rl.models import CyberAction, CyberObservation
 from server.cyber_environment import CyberEnvironment
 
 
+import os
+
 app = create_app(
     CyberEnvironment,
     CyberAction,
     CyberObservation,
     env_name="cyber_openenv_rl",
-    max_concurrent_envs=4,
+    max_concurrent_envs=int(os.getenv("MAX_CONCURRENT_ENVS", 4)),
 )
 # In-memory storage for pending approvals
 pending_approvals: dict[str, dict] = {}
@@ -90,8 +92,11 @@ def chrome_devtools_probe() -> JSONResponse:
 
 def main(host: str = "0.0.0.0", port: int = 8000):
     import uvicorn
+    import os
 
-    uvicorn.run(app, host=host, port=port)
+    workers = int(os.getenv("WORKERS", 1))
+    
+    uvicorn.run(app, host=host, port=port, workers=workers)
 
 
 def _cli() -> None:

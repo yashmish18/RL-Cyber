@@ -1,0 +1,16 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY . /app
+
+RUN pip install --no-cache-dir -r server/requirements.txt
+
+# Set default environment variables for scaling
+ENV WORKERS=4
+ENV MAX_CONCURRENT_ENVS=100
+ENV PORT=7860
+
+EXPOSE $PORT
+
+CMD ["sh", "-c", "python -m server.app --port $PORT"]

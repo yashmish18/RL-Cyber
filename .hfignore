@@ -1,0 +1,13 @@
+# Hugging Face Ignore File
+__pycache__/
+*.pyc
+.git/
+.vscode/
+node_modules/
+venv/
+.venv/
+.hf-cli/
+.gemini/
+outputs/logs/
+*.zip
+!outputs/models/*.zip
