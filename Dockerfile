@@ -7,9 +7,9 @@ COPY . /app
 RUN pip install --no-cache-dir -r server/requirements.txt
 
 # Set default environment variables for scaling
-ENV WORKERS=4
-ENV MAX_CONCURRENT_ENVS=100
-ENV PORT=7860
+ENV WORKERS=1
+ENV MAX_CONCURRENT_ENVS=10
+ENV PORT=8000
 
 EXPOSE $PORT
 

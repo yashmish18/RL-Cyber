@@ -11,6 +11,7 @@ DefenderActionName = Literal[
     "isolate_node",
     "scan_host",
     "patch_service",
+    "restore_backup",
     "ignore",
 ]
 AttackerActionName = Literal[
